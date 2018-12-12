@@ -22,9 +22,17 @@ let Md5ByFileName (fileName: string): string =
     use stream = File.OpenRead(fileName)
     (Md5File stream)
 
-let FindRepeatFiles (path: string):unit =
-    Console.WriteLine ""
-    let fileDict = new Dictionary<string, string list>()
+let fileDict = new Dictionary<string, string list>()
+
+let rec GetAllFiles (path: string): string list =
+    if Directory.Exists(path) then
+        Directory.GetFiles path
+        |> Array.toList
+        |> fun files ->
+            
+    else []
+
+let rec FindRepeatFiles (path: string):unit =
     if Directory.Exists(path) then
         Directory.GetFiles(path)
         |> Array.toList
@@ -40,7 +48,6 @@ let FindRepeatFiles (path: string):unit =
                 else
                     fileDict.[md5Str] <- (file :: fileDict.[md5Str])
                     ()
-            Console.Write "\r扫描完成！    \n\n"
             fileDict
         |> fun dict ->
             for pair in dict do
@@ -49,3 +56,7 @@ let FindRepeatFiles (path: string):unit =
                     for file in pair.Value do
                         Console.WriteLine("     " + file)
             ()
+        Directory.GetDirectories(path)
+        |> fun dirs ->
+            for dir in dirs do
+                FindRepeatFiles dir
