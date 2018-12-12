@@ -1,4 +1,4 @@
-﻿module FindDuplicatedFiles
+﻿module FindDuplicateFiles
 
 open System.Security.Cryptography
 open System.Text

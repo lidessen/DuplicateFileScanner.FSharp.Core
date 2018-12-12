@@ -1,4 +1,4 @@
-﻿open FindDuplicatedFiles
+﻿open FindDuplicateFiles
 
 [<EntryPoint>]
 let main argv =
