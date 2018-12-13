@@ -25,17 +25,20 @@ let Md5ByFileName (fileName: string): string =
 let fileDict = new Dictionary<string, string list>()
 
 let rec GetAllFiles (path: string): string list =
+    let mutable result: string list = []
     if Directory.Exists(path) then
         Directory.GetFiles path
         |> Array.toList
         |> fun files ->
-            
-    else []
+            result <- result @ files
+            for dir in Directory.GetDirectories(path) do
+                result <- (GetAllFiles dir) @ result
+    result
 
-let rec FindRepeatFiles (path: string):unit =
+let FindRepeatFiles (path: string):unit =
     if Directory.Exists(path) then
-        Directory.GetFiles(path)
-        |> Array.toList
+        Console.WriteLine ""
+        GetAllFiles path
         |> fun files ->
             let mutable count = 0
             for file in files do
@@ -48,6 +51,7 @@ let rec FindRepeatFiles (path: string):unit =
                 else
                     fileDict.[md5Str] <- (file :: fileDict.[md5Str])
                     ()
+            Console.Write "\r扫描完成！    \n\n"
             fileDict
         |> fun dict ->
             for pair in dict do
@@ -56,7 +60,3 @@ let rec FindRepeatFiles (path: string):unit =
                     for file in pair.Value do
                         Console.WriteLine("     " + file)
             ()
-        Directory.GetDirectories(path)
-        |> fun dirs ->
-            for dir in dirs do
-                FindRepeatFiles dir
