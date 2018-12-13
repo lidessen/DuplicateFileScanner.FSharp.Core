@@ -22,7 +22,8 @@ let Md5ByFileName (fileName: string): string =
     use stream = File.OpenRead(fileName)
     (Md5File stream)
 
-let fileDict = new Dictionary<string, string list>()
+let mutable fileDict = new Dictionary<string, string list>()
+let mutable count = 0
 
 let rec GetAllFiles (path: string): string list =
     let mutable result: string list = []
@@ -35,22 +36,31 @@ let rec GetAllFiles (path: string): string list =
                 result <- (GetAllFiles dir) @ result
     result
 
+let ProcessFile (file: string, total: int) =
+    async {
+        let md5Str = Md5ByFileName file
+        count <- count + 1
+        Console.Write (sprintf "\r已扫描[%d%%]" ((int)((float)count / (float)total * 100.0)))
+        if not (fileDict.ContainsKey md5Str) then
+            fileDict.Add(md5Str, [file])
+            ()
+        else
+            fileDict.[md5Str] <- (file :: fileDict.[md5Str])
+            ()
+    }
+
 let FindRepeatFiles (path: string):unit =
+    fileDict <- new Dictionary<string, string list>()
+    count <- 0
     if Directory.Exists(path) then
         Console.WriteLine ""
         GetAllFiles path
         |> fun files ->
-            let mutable count = 0
-            for file in files do
-                count <- count + 1
-                Console.Write (sprintf "\r已扫描[%d%%]" ((int)((float)count / (float)files.Length * 100.0)))
-                let md5Str = Md5ByFileName file
-                if not (fileDict.ContainsKey md5Str) then
-                    fileDict.Add(md5Str, [file])
-                    ()
-                else
-                    fileDict.[md5Str] <- (file :: fileDict.[md5Str])
-                    ()
+            files
+            |> List.map (fun file -> (ProcessFile(file, files.Length)))
+            |> Async.Parallel
+            |> Async.RunSynchronously
+            |> ignore
             Console.Write "\r扫描完成！    \n\n"
             fileDict
         |> fun dict ->
