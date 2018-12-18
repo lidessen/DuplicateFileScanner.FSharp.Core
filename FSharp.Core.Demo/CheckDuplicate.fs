@@ -48,6 +48,7 @@ type DuplicateScanner() =
     member this.Check(path: string) =
         fileDict <- new Dictionary<string, string list>()
         count <- 0
+        let startTime = DateTime.Now
         if Directory.Exists(path) then
             Console.WriteLine ""
             this.GetAllFiles path
@@ -57,7 +58,8 @@ type DuplicateScanner() =
                     this.ProcessFile(file)
                     |> Async.RunSynchronously
                     |> ignore
-                Console.Write "\r扫描完成！    \n\n"
+                let endTime = DateTime.Now
+                Console.Write (sprintf "\r扫描完成！ 耗时%f秒    \n\n" (endTime - startTime).TotalSeconds)
                 fileDict
             |> fun dict ->
                 for pair in dict do
