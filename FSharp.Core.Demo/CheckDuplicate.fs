@@ -10,7 +10,7 @@ type DuplicateScanner() =
     let mutable fileDict = new Dictionary<string, string list>()
     let mutable count = 0
     let mutable files: string list = []
-    
+
     member this.GetAllFiles(path: string):string list =
         let mutable result: string list = []
         if Directory.Exists(path) then
@@ -21,7 +21,7 @@ type DuplicateScanner() =
                 for dir in Directory.GetDirectories(path) do
                     result <- (this.GetAllFiles dir) @ result
         result
-    
+
     member this.ProcessFile(file: string) =
         async {
             let md5Str = this.Md5ByFileName file
@@ -34,17 +34,17 @@ type DuplicateScanner() =
                 fileDict.[md5Str] <- (file :: fileDict.[md5Str])
                 ()
         }
-      
+
     member this.Md5ByFileName(fileName: string) =
         use stream = File.OpenRead(fileName)
         (this.Md5File stream)
-    
+
     member _this.Md5File(fileStream: FileStream): string =
         use md5 = MD5.Create()
         (StringBuilder(), md5.ComputeHash(fileStream))
         ||> Array.fold (fun sb b -> sb.Append(b.ToString("x2")))
         |> string
-    
+
     member this.Check(path: string) =
         fileDict <- new Dictionary<string, string list>()
         count <- 0
