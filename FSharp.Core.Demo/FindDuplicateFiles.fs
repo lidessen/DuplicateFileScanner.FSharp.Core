@@ -6,21 +6,28 @@ open System.IO
 open System
 open System.Collections.Generic
 
-let Md5 (data: byte[]): string =
+type FileData = 
+    | Bytes of byte[]
+    | Stream of FileStream
+
+let Md5 (data: FileData): byte[] =
     use md5 = MD5.Create()
-    (StringBuilder(), md5.ComputeHash(data))
+    match data with
+    | Bytes(d) -> md5.ComputeHash d
+    | Stream(d) -> md5.ComputeHash d
+
+let Md5File (data: FileData): string =
+    data
+    |> Md5
+    |> fun bytes -> (StringBuilder(), bytes)
     ||> Array.fold (fun sb b -> sb.Append(b.ToString("x2")))
     |> string
 
-let Md5File (fileStream: FileStream): string =
-    use md5 = MD5.Create()
-    (StringBuilder(), md5.ComputeHash(fileStream))
-    ||> Array.fold (fun sb b -> sb.Append(b.ToString("x2")))
-    |> string
-
-let Md5ByFileName (fileName: string): string =
-    use stream = File.OpenRead(fileName)
-    (Md5File stream)
+let Md5ByFileName (fileName: string): string option =
+    try
+        use stream = File.OpenRead(fileName)
+        Some(Md5File (Stream(stream)))
+    with _ -> None
 
 let mutable fileDict = new Dictionary<string, string list>()
 let mutable count = 0
@@ -38,15 +45,22 @@ let rec GetAllFiles (path: string): string list =
 
 let ProcessFile (file: string, total: int) =
     async {
-        let md5Str = Md5ByFileName file
-        count <- count + 1
-        Console.Write (sprintf "\r已扫描[%d%%]" ((int)((float)count / (float)total * 100.0)))
-        if not (fileDict.ContainsKey md5Str) then
-            fileDict.Add(md5Str, [file])
-            ()
-        else
-            fileDict.[md5Str] <- (file :: fileDict.[md5Str])
-            ()
+        try
+            let md5Str = Md5ByFileName file
+            count <- count + 1
+            let percent = ((int)((float)count / (float)total * 100.0))
+            Console.Write ($"\r已扫描[{percent}%%]")
+            match md5Str with
+            | Some(str) ->
+                if not (fileDict.ContainsKey str) then
+                    fileDict.Add(str, [file])
+                    ()
+                else
+                    fileDict.[str] <- (file :: fileDict.[str])
+                    ()
+            | None -> ()
+        with _ -> ()
+        
     }
 
 let FindRepeatFiles (path: string):unit =

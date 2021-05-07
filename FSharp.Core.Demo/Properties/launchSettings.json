@@ -2,7 +2,7 @@
   "profiles": {
     "FSharp.Core.Demo": {
       "commandName": "Project",
-      "commandLineArgs": "."
+      "commandLineArgs": "D:\\OneDrive\\Music"
     }
   }
 }
