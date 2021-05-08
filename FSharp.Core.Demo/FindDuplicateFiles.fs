@@ -38,15 +38,14 @@ let ConsolePadding (content: string) (length: int) : string =
     |> String
     |> fun str -> content + str
 
-type Printer() = 
+type Printer() =
     let lastLength = 0
-    
+
     member this.Print (text: string) =
         if lastLength > 0 then
             lastLength |> ConsolePadding "\r" |> Console.Write |> ignore
         text |> Console.Write |> ignore
         lastLength = text.Length |> ignore
-            
 
 type FileCounter(printer: Printer) as this =
     member val Timer: Timer = new Timer((this.Print), null, 0, 100)
@@ -55,8 +54,6 @@ type FileCounter(printer: Printer) as this =
         $"\rFind {this.Count} files" |> printer.Print |> ignore
     interface IDisposable with
         member _.Dispose() = this.Timer.Dispose()
-
-
 
 let GetAllFiles (root: string) (ignores: string[]) : string list =
     use counter = new FileCounter(new Printer())
