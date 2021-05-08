@@ -5,8 +5,9 @@ open System.Text
 open System.IO
 open System
 open System.Collections.Generic
+open System.Threading
 
-type FileData = 
+type FileData =
     | Bytes of byte[]
     | Stream of FileStream
 
@@ -32,16 +33,47 @@ let Md5ByFileName (fileName: string): string option =
 let mutable fileDict = new Dictionary<string, string list>()
 let mutable count = 0
 
-let rec GetAllFiles (path: string): string list =
-    let mutable result: string list = []
-    if Directory.Exists(path) then
-        Directory.GetFiles path
-        |> Array.toList
-        |> fun files ->
-            result <- result @ files
-            for dir in Directory.GetDirectories(path) do
-                result <- (GetAllFiles dir) @ result
-    result
+let ConsolePadding (content: string) (length: int) : string =
+    Array.create (Console.WindowWidth - content.Length) ' '
+    |> String
+    |> fun str -> content + str
+
+type Printer() = 
+    let lastLength = 0
+    
+    member this.Print (text: string) =
+        if lastLength > 0 then
+            lastLength |> ConsolePadding "\r" |> Console.Write |> ignore
+        text |> Console.Write |> ignore
+        lastLength = text.Length |> ignore
+            
+
+type FileCounter(printer: Printer) as this =
+    member val Timer: Timer = new Timer((this.Print), null, 0, 100)
+    member val Count = 0 with get, set
+    member this.Print(_) =
+        $"\rFind {this.Count} files" |> printer.Print |> ignore
+    interface IDisposable with
+        member _.Dispose() = this.Timer.Dispose()
+
+
+
+let GetAllFiles (root: string) (ignores: string[]) : string list =
+    use counter = new FileCounter(new Printer())
+    let rec GetAllFilesRec (path: string) : string list =
+        let mutable result: string list = []
+        if Directory.Exists(path) then
+            Directory.GetFiles path
+            |> Array.toList
+            |> fun files ->
+                result <- result @ files
+                counter.Count <- counter.Count + files.Length
+                for dir in Directory.GetDirectories(path) do
+                    let dirInfo = new DirectoryInfo(dir)
+                    if not (Array.contains dirInfo.Name ignores) && not (Array.contains dirInfo.FullName ignores) then
+                        result <- (GetAllFilesRec dir) @ result
+        result
+    GetAllFilesRec root
 
 let ProcessFile (file: string, total: int) =
     async {
@@ -49,7 +81,7 @@ let ProcessFile (file: string, total: int) =
             let md5Str = Md5ByFileName file
             count <- count + 1
             let percent = ((int)((float)count / (float)total * 100.0))
-            Console.Write ($"\r已扫描[{percent}%%]")
+            Console.Write ($"\rScanning: [{percent}%%]")
             match md5Str with
             | Some(str) ->
                 if not (fileDict.ContainsKey str) then
@@ -60,27 +92,27 @@ let ProcessFile (file: string, total: int) =
                     ()
             | None -> ()
         with _ -> ()
-        
+
     }
 
-let FindRepeatFiles (path: string):unit =
+let FindRepeatFiles (path: string) (ignores: string[]) :unit =
     fileDict <- new Dictionary<string, string list>()
     count <- 0
     if Directory.Exists(path) then
         Console.WriteLine ""
-        GetAllFiles path
+        GetAllFiles path ignores
         |> fun files ->
             files
             |> List.map (fun file -> (ProcessFile(file, files.Length)))
             |> Async.Parallel
             |> Async.RunSynchronously
             |> ignore
-            Console.Write "\r扫描完成！    \n\n"
+            Console.Write "\rScan finished!    \n\n"
             fileDict
         |> fun dict ->
             for pair in dict do
                 if pair.Value.Length > 1 then
-                    Console.WriteLine("{0}个文件重复", pair.Value.Length)
+                    Console.WriteLine("{0} files are same:", pair.Value.Length)
                     for file in pair.Value do
                         Console.WriteLine("     " + file)
             ()
